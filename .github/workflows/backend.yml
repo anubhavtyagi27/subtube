@@ -1,0 +1,54 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: subtube
+          POSTGRES_USER: subtube
+          POSTGRES_PASSWORD: subtube
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: uv sync --dev
+
+      - name: Lint with ruff
+        working-directory: ./backend
+        run: uv run ruff check .
+
+      - name: Run tests
+        working-directory: ./backend
+        env:
+          DB_NAME: subtube
+          DB_USER: subtube
+          DB_PASSWORD: subtube
+          DB_HOST: localhost
+          DB_PORT: 5432
+          SECRET_KEY: ci-test-secret-key
+        run: uv run pytest
